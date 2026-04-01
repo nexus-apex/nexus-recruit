@@ -3,9 +3,8 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
-from django.views.decorators.http import require_http_methods
-from django.conf import settings
-from .models import Record
+from django.db.models import Sum, Count
+from .models import JobPosting, Candidate, Interview
 
 
 def login_view(request):
@@ -30,67 +29,183 @@ def logout_view(request):
 
 @login_required
 def dashboard_view(request):
-    total = Record.objects.count()
-    active = Record.objects.filter(status='active').count()
-    pending = Record.objects.filter(status='pending').count()
-    inactive = Record.objects.filter(status='inactive').count()
-    recent = Record.objects.all()[:10]
-    return render(request, 'dashboard.html', {
-        'total': total, 'active': active, 'pending': pending,
-        'inactive': inactive, 'recent': recent,
-    })
+    ctx = {}
+    ctx['jobposting_count'] = JobPosting.objects.count()
+    ctx['jobposting_full_time'] = JobPosting.objects.filter(job_type='full_time').count()
+    ctx['jobposting_part_time'] = JobPosting.objects.filter(job_type='part_time').count()
+    ctx['jobposting_contract'] = JobPosting.objects.filter(job_type='contract').count()
+    ctx['candidate_count'] = Candidate.objects.count()
+    ctx['candidate_new'] = Candidate.objects.filter(status='new').count()
+    ctx['candidate_screening'] = Candidate.objects.filter(status='screening').count()
+    ctx['candidate_interview'] = Candidate.objects.filter(status='interview').count()
+    ctx['interview_count'] = Interview.objects.count()
+    ctx['interview_in_person'] = Interview.objects.filter(mode='in_person').count()
+    ctx['interview_video'] = Interview.objects.filter(mode='video').count()
+    ctx['interview_phone'] = Interview.objects.filter(mode='phone').count()
+    ctx['recent'] = JobPosting.objects.all()[:10]
+    return render(request, 'dashboard.html', ctx)
 
 
 @login_required
-def records_view(request):
-    records = Record.objects.all()
-    status_filter = request.GET.get('status', '')
+def jobposting_list(request):
+    qs = JobPosting.objects.all()
     search = request.GET.get('search', '')
-    if status_filter:
-        records = records.filter(status=status_filter)
     if search:
-        records = records.filter(name__icontains=search)
-    return render(request, 'records.html', {'records': records, 'status_filter': status_filter, 'search': search})
+        qs = qs.filter(title__icontains=search)
+    status_filter = request.GET.get('status', '')
+    if status_filter:
+        qs = qs.filter(job_type=status_filter)
+    return render(request, 'jobposting_list.html', {'records': qs, 'search': search, 'status_filter': status_filter})
 
 
 @login_required
-def record_create(request):
+def jobposting_create(request):
     if request.method == 'POST':
-        Record.objects.create(
-            name=request.POST.get('name', ''),
-            description=request.POST.get('description', ''),
-            status=request.POST.get('status', 'active'),
-            email=request.POST.get('email', ''),
-            phone=request.POST.get('phone', ''),
-            amount=request.POST.get('amount', 0) or 0,
-            notes=request.POST.get('notes', ''),
-        )
-        return redirect('/records/')
-    return render(request, 'record_form.html', {'editing': False})
+        obj = JobPosting()
+        obj.title = request.POST.get('title', '')
+        obj.department = request.POST.get('department', '')
+        obj.location = request.POST.get('location', '')
+        obj.job_type = request.POST.get('job_type', '')
+        obj.salary_range = request.POST.get('salary_range', '')
+        obj.status = request.POST.get('status', '')
+        obj.applications = request.POST.get('applications') or 0
+        obj.description = request.POST.get('description', '')
+        obj.save()
+        return redirect('/jobpostings/')
+    return render(request, 'jobposting_form.html', {'editing': False})
 
 
 @login_required
-def record_edit(request, pk):
-    record = get_object_or_404(Record, pk=pk)
+def jobposting_edit(request, pk):
+    obj = get_object_or_404(JobPosting, pk=pk)
     if request.method == 'POST':
-        record.name = request.POST.get('name', record.name)
-        record.description = request.POST.get('description', record.description)
-        record.status = request.POST.get('status', record.status)
-        record.email = request.POST.get('email', record.email)
-        record.phone = request.POST.get('phone', record.phone)
-        record.amount = request.POST.get('amount', record.amount) or 0
-        record.notes = request.POST.get('notes', record.notes)
-        record.save()
-        return redirect('/records/')
-    return render(request, 'record_form.html', {'record': record, 'editing': True})
+        obj.title = request.POST.get('title', '')
+        obj.department = request.POST.get('department', '')
+        obj.location = request.POST.get('location', '')
+        obj.job_type = request.POST.get('job_type', '')
+        obj.salary_range = request.POST.get('salary_range', '')
+        obj.status = request.POST.get('status', '')
+        obj.applications = request.POST.get('applications') or 0
+        obj.description = request.POST.get('description', '')
+        obj.save()
+        return redirect('/jobpostings/')
+    return render(request, 'jobposting_form.html', {'record': obj, 'editing': True})
 
 
 @login_required
-def record_delete(request, pk):
-    record = get_object_or_404(Record, pk=pk)
+def jobposting_delete(request, pk):
+    obj = get_object_or_404(JobPosting, pk=pk)
     if request.method == 'POST':
-        record.delete()
-    return redirect('/records/')
+        obj.delete()
+    return redirect('/jobpostings/')
+
+
+@login_required
+def candidate_list(request):
+    qs = Candidate.objects.all()
+    search = request.GET.get('search', '')
+    if search:
+        qs = qs.filter(name__icontains=search)
+    status_filter = request.GET.get('status', '')
+    if status_filter:
+        qs = qs.filter(status=status_filter)
+    return render(request, 'candidate_list.html', {'records': qs, 'search': search, 'status_filter': status_filter})
+
+
+@login_required
+def candidate_create(request):
+    if request.method == 'POST':
+        obj = Candidate()
+        obj.name = request.POST.get('name', '')
+        obj.email = request.POST.get('email', '')
+        obj.phone = request.POST.get('phone', '')
+        obj.current_company = request.POST.get('current_company', '')
+        obj.experience_years = request.POST.get('experience_years') or 0
+        obj.status = request.POST.get('status', '')
+        obj.resume_url = request.POST.get('resume_url', '')
+        obj.notes = request.POST.get('notes', '')
+        obj.save()
+        return redirect('/candidates/')
+    return render(request, 'candidate_form.html', {'editing': False})
+
+
+@login_required
+def candidate_edit(request, pk):
+    obj = get_object_or_404(Candidate, pk=pk)
+    if request.method == 'POST':
+        obj.name = request.POST.get('name', '')
+        obj.email = request.POST.get('email', '')
+        obj.phone = request.POST.get('phone', '')
+        obj.current_company = request.POST.get('current_company', '')
+        obj.experience_years = request.POST.get('experience_years') or 0
+        obj.status = request.POST.get('status', '')
+        obj.resume_url = request.POST.get('resume_url', '')
+        obj.notes = request.POST.get('notes', '')
+        obj.save()
+        return redirect('/candidates/')
+    return render(request, 'candidate_form.html', {'record': obj, 'editing': True})
+
+
+@login_required
+def candidate_delete(request, pk):
+    obj = get_object_or_404(Candidate, pk=pk)
+    if request.method == 'POST':
+        obj.delete()
+    return redirect('/candidates/')
+
+
+@login_required
+def interview_list(request):
+    qs = Interview.objects.all()
+    search = request.GET.get('search', '')
+    if search:
+        qs = qs.filter(candidate_name__icontains=search)
+    status_filter = request.GET.get('status', '')
+    if status_filter:
+        qs = qs.filter(mode=status_filter)
+    return render(request, 'interview_list.html', {'records': qs, 'search': search, 'status_filter': status_filter})
+
+
+@login_required
+def interview_create(request):
+    if request.method == 'POST':
+        obj = Interview()
+        obj.candidate_name = request.POST.get('candidate_name', '')
+        obj.job_title = request.POST.get('job_title', '')
+        obj.interviewer = request.POST.get('interviewer', '')
+        obj.date = request.POST.get('date') or None
+        obj.mode = request.POST.get('mode', '')
+        obj.status = request.POST.get('status', '')
+        obj.rating = request.POST.get('rating') or 0
+        obj.feedback = request.POST.get('feedback', '')
+        obj.save()
+        return redirect('/interviews/')
+    return render(request, 'interview_form.html', {'editing': False})
+
+
+@login_required
+def interview_edit(request, pk):
+    obj = get_object_or_404(Interview, pk=pk)
+    if request.method == 'POST':
+        obj.candidate_name = request.POST.get('candidate_name', '')
+        obj.job_title = request.POST.get('job_title', '')
+        obj.interviewer = request.POST.get('interviewer', '')
+        obj.date = request.POST.get('date') or None
+        obj.mode = request.POST.get('mode', '')
+        obj.status = request.POST.get('status', '')
+        obj.rating = request.POST.get('rating') or 0
+        obj.feedback = request.POST.get('feedback', '')
+        obj.save()
+        return redirect('/interviews/')
+    return render(request, 'interview_form.html', {'record': obj, 'editing': True})
+
+
+@login_required
+def interview_delete(request, pk):
+    obj = get_object_or_404(Interview, pk=pk)
+    if request.method == 'POST':
+        obj.delete()
+    return redirect('/interviews/')
 
 
 @login_required
@@ -98,12 +213,10 @@ def settings_view(request):
     return render(request, 'settings.html')
 
 
-# API endpoints
 @login_required
 def api_stats(request):
-    return JsonResponse({
-        'total': Record.objects.count(),
-        'active': Record.objects.filter(status='active').count(),
-        'pending': Record.objects.filter(status='pending').count(),
-        'inactive': Record.objects.filter(status='inactive').count(),
-    })
+    data = {}
+    data['jobposting_count'] = JobPosting.objects.count()
+    data['candidate_count'] = Candidate.objects.count()
+    data['interview_count'] = Interview.objects.count()
+    return JsonResponse(data)
