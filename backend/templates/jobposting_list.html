@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Jobpostings | NexusRecruit{% endblock %}
+{% block page_title %}Jobpostings{% endblock %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem">
+  <form class="search-bar" method="get" style="flex:1;margin-bottom:0">
+    <input type="text" name="search" value="{{ search }}" placeholder="Search jobpostings...">
+    <select name="status" onchange="this.form.submit()">
+      <option value="">All Job Type</option>
+      <option value="full_time" {% if status_filter == 'full_time' %}selected{% endif %}>Full Time</option>
+      <option value="part_time" {% if status_filter == 'part_time' %}selected{% endif %}>Part Time</option>
+      <option value="contract" {% if status_filter == 'contract' %}selected{% endif %}>Contract</option>
+      <option value="internship" {% if status_filter == 'internship' %}selected{% endif %}>Internship</option>
+    </select>
+    <button type="submit" class="btn btn-primary btn-sm">Search</button>
+  </form>
+  <a href="/jobpostings/create/" class="btn btn-primary">+ New JobPosting</a>
+</div>
+
+<div class="card">
+  {% if records %}
+  <table>
+    <thead>
+      <tr><th>Title</th><th>Department</th><th>Location</th><th>Job Type</th><th>Salary Range</th><th>Actions</th></tr>
+    </thead>
+    <tbody>
+      {% for r in records %}
+      <tr>
+        <td><a href="/jobpostings/{{ r.pk }}/edit/"><strong>{{ r.title }}</strong></a></td>
+        <td>{{ r.department|default:"-" }}</td>
+        <td>{{ r.location|default:"-" }}</td>
+        <td><span class="badge badge-blue">{{ r.get_job_type_display }}</span></td>
+        <td>{{ r.salary_range|default:"-" }}</td>
+        <td class="actions">
+          <a href="/jobpostings/{{ r.pk }}/edit/" class="btn btn-primary btn-sm">Edit</a>
+          <form method="post" action="/jobpostings/{{ r.pk }}/delete/" style="display:inline" onsubmit="return confirm('Delete?')">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger btn-sm">Del</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">
+    <p>No jobpostings found.</p>
+    <a href="/jobpostings/create/" class="btn btn-primary" style="margin-top:1rem">Create JobPosting</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
