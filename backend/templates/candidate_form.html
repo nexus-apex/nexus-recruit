@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}{% if editing %}Edit{% else %}New{% endif %} Candidate | NexusRecruit{% endblock %}
+{% block page_title %}{% if editing %}Edit Candidate{% else %}New Candidate{% endif %}{% endblock %}
+{% block content %}
+<div class="card" style="max-width:750px">
+  <form method="post">
+    {% csrf_token %}
+    <div class="form-row">
+      <div class="form-group">
+        <label>Name</label>
+        <input type="text" name="name" value="{{ record.name|default:'' }}">
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" name="email" value="{{ record.email|default:'' }}">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Phone</label>
+        <input type="text" name="phone" value="{{ record.phone|default:'' }}">
+      </div>
+      <div class="form-group">
+        <label>Current Company</label>
+        <input type="text" name="current_company" value="{{ record.current_company|default:'' }}">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Experience Years</label>
+        <input type="number" name="experience_years" value="{{ record.experience_years|default:'0' }}">
+      </div>
+      <div class="form-group">
+        <label>Status</label>
+        <select name="status">
+          <option value="new" {% if record.status == 'new' %}selected{% endif %}>New</option>
+          <option value="screening" {% if record.status == 'screening' %}selected{% endif %}>Screening</option>
+          <option value="interview" {% if record.status == 'interview' %}selected{% endif %}>Interview</option>
+          <option value="offer" {% if record.status == 'offer' %}selected{% endif %}>Offer</option>
+          <option value="hired" {% if record.status == 'hired' %}selected{% endif %}>Hired</option>
+          <option value="rejected" {% if record.status == 'rejected' %}selected{% endif %}>Rejected</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Resume Url</label>
+        <input type="url" name="resume_url" value="{{ record.resume_url|default:'' }}">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Notes</label>
+      <textarea name="notes">{{ record.notes|default:'' }}</textarea>
+    </div>
+
+    <div style="display:flex;gap:0.75rem;margin-top:1rem">
+      <button type="submit" class="btn btn-primary">{% if editing %}Update{% else %}Create{% endif %} Candidate</button>
+      <a href="/candidates/" class="btn" style="background:var(--border);color:var(--text)">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
